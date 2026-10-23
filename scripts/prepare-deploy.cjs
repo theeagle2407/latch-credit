@@ -1,0 +1,16 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const solc = require('solc');
+const { ethers } = require('ethers');
+const root = path.resolve(__dirname, '..');
+const config = require('../config/mezo-testnet.json');
+const source = fs.readFileSync(path.join(root, 'contracts/LatchCredit.sol'), 'utf8');
+const result = JSON.parse(solc.compile(JSON.stringify({language:'Solidity', sources:{'contracts/LatchCredit.sol':{content:source}}, settings:{optimizer:{enabled:true,runs:200},evmVersion:'london',outputSelection:{'*':{'*':['abi','evm.bytecode.object']}}}}), {import:name=>{try{return {contents:fs.readFileSync(path.join(root,'node_modules',name),'utf8')}}catch{return {error:'Missing import: '+name}}}}));
+const errors = (result.errors || []).filter(e=>e.severity==='error');
+if(errors.length) throw Error(errors.map(e=>e.formattedMessage).join('\n'));
+const artifact = result.contracts['contracts/LatchCredit.sol'].LatchCredit;
+const args = ethers.AbiCoder.defaultAbiCoder().encode(['address','address'],[config.musd,config.veBTC]);
+const payload = {chainId:config.chainId, rpcUrl:config.rpcUrl, explorer:config.explorer, musd:config.musd, veBTC:config.veBTC, deployer:'0xB37b46F58cd7E384DbD051332EB0c6e110E3Ed7C', compiler:solc.version(), evmVersion:'london', abi:artifact.abi, data:'0x'+artifact.evm.bytecode.object+args.slice(2)};
+fs.writeFileSync(path.join(root,'dist/deployment.json'),JSON.stringify(payload,null,2));
+fs.writeFileSync(path.join(root,'dist/network.json'),JSON.stringify({...config,abi:artifact.abi,expectedDeployer:payload.deployer,creationDataHash:ethers.keccak256(payload.data)},null,2)+'\n');
+console.log('Deployment prepared. Open http://localhost:3001/deploy.html after starting the server.');

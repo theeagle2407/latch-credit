@@ -1,0 +1,7 @@
+node_modules
+artifacts
+.git
+.env
+.env.*
+*.log
+public-app

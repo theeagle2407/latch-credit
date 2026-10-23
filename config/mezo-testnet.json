@@ -1,0 +1,11 @@
+{
+  "chainId": 31611,
+  "rpcUrl": "https://rpc.test.mezo.org",
+  "explorer": "https://explorer.test.mezo.org",
+  "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+  "veBTC": "0x38E35d92E6Bfc6787272A62345856B13eA12130a",
+  "latchCredit": "0xf65dd90ffe34da7f5e12938a174b8bcaf46b67bd",
+  "status": "deployed",
+  "deploymentTransaction": "0xe8986547642643c56b553cb0af37681ca01f80a811fe3f46daaa86a5fd0e4a04",
+  "deploymentBlock": 16315283
+}
