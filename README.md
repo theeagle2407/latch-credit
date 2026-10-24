@@ -1,20 +1,44 @@
 # Latch
 
-**Short-term MUSD credit against the Bitcoin you have already locked.**
+**MUSD credit against the Bitcoin you already locked.**
 
-Latch lets owners of eligible veBTC positions request fixed-term loans funded by another wallet. The NFT enters escrow; a lender supplies existing MUSD; repayment returns the right to claim the NFT to its owner.
+[Open Latch](https://latch-credit.vercel.app/) · [Loan evidence](#verified-on-chain) · [Run locally](#run-locally) · [Contract documentation](docs/CONTRACTS.md)
 
-Built on Mezo Testnet. A complete two-wallet loan cycle has been executed with Mezo's deployed MUSD token and veBTC collection.
+Latch is a fixed-term credit market for eligible veBTC positions on Mezo. A borrower escrows an existing position NFT, a separate lender supplies MUSD, and repayment returns the NFT claim to the borrower.
 
-## Why Latch
+**Status:** deployed on Mezo Testnet. A complete builder-controlled loan cycle has been executed. Experimental and unaudited; independent borrower demand and lender economics remain unvalidated.
 
-Owners who have already locked BTC cannot use that same BTC as ordinary liquid collateral. Latch accepts the transferable position NFT, subject to eligibility and a lock horizon covering the funding window, loan term and grace period.
+## The problem
 
-Borrowers choose principal, fixed interest and duration. Lenders review requests individually. Funding is not guaranteed. Latch does not mint MUSD or set an automatic credit limit.
+A veBTC holder may need liquidity before their Bitcoin unlocks. The BTC inside that position is not available as ordinary liquid collateral. Latch accepts the eligible position NFT instead, creating a way to request MUSD without first withdrawing the underlying Bitcoin.
 
-## Verified loan cycle
+The initial user is an existing veBTC holder seeking short-term liquidity. The counterparty is a lender willing to assess that position, agree to its terms and bear the recovery delay. Funding is voluntary, not guaranteed.
 
-On October 23, 2026, Loan #1 used veBTC #1705, representing 0.001 BTC, for a 1 MUSD loan at zero interest with a seven-day term. It was repaid early using two separate wallets controlled by the builder. This is an integration test, not evidence of independent customer demand.
+## How it works
+
+| Step | What happens |
+| --- | --- |
+| Request | The borrower chooses principal, fixed interest and term, then escrows an eligible NFT. |
+| Review | A lender sees locked BTC, return over the actual loan term, repayment timing and the BTC unlock date. |
+| Fund | The lender transfers existing MUSD directly to the borrower. The loan clock starts at funding. |
+| Repay | The borrower pays principal plus fixed interest. The borrower receives an NFT claim and the lender receives a repayment balance. |
+| Collect | The borrower claims the NFT; the lender withdraws MUSD in separate transactions. |
+
+If an active loan remains unpaid after its one-day grace period, only its lender can claim default and then claim the NFT. **NFT recovery is not immediate BTC recovery:** withdrawal remains subject to the underlying lock and voting restrictions.
+
+An unfunded request can be cancelled. The UI uses a 24-hour funding window. Fixed interest is payable in full even on early repayment.
+
+## Why Mezo
+
+Latch uses both sides of an existing Mezo position: **veBTC as transferable collateral and MUSD as the funding and repayment asset**. Ownership, escrow type, locked amount and expiration are read from the deployed contracts. Eligibility is checked at request and funding.
+
+Latch does not mint MUSD or open a Mezo borrowing position. It adds a lender-funded credit workflow around an eligible position that already exists. It does not forward voting rights or rewards while the NFT is escrowed.
+
+## Verified on-chain
+
+Loan #1 completed on October 23, 2026 using veBTC #1705, representing **0.001 BTC**, with **1 MUSD principal**, **zero interest** and a **seven-day term**, repaid early.
+
+Both wallets were controlled by the builder. This is evidence of an exercised integration, not independent adoption or profitable lending.
 
 | Step | On-chain evidence |
 | --- | --- |
@@ -24,30 +48,65 @@ On October 23, 2026, Loan #1 used veBTC #1705, representing 0.001 BTC, for a 1 M
 | Borrower claims NFT | [Collateral claim](https://explorer.test.mezo.org/tx/0x4b09e55660ff79b5427747a31a1c6ed89573b670ddfbd4fcf9591ea44d7f9b7a) |
 | Lender withdraws repayment | [Withdrawal](https://explorer.test.mezo.org/tx/0x323bb79a8b59f56f68c329b152633309470be5ec765689fbec84986a1e8f50fc) |
 
-Final state was independently read through Mezo RPC: Loan #1 Repaid, NFT #1705 owned by the borrower, positionLoan and collateralClaimant cleared, lender repaymentBalance zero, and lender MUSD balance restored to 1,800. These are observations at verification time, not a live balance feed.
+At verification, the loan was Repaid, the NFT was back with its borrower, the loan/claim mappings were cleared, and the lender's repayment balance was zero after withdrawal. These are recorded observations, not a live balance feed. Default recovery has been tested locally with mocks, not demonstrated on the live deployment.
 
 ## Run locally
 
-Node 22 or newer. No dependency installation is required to run the bundled interface.
+Requires Node.js 22 or newer. The bundled interface runs without installing dependencies:
 
 ```sh
-PORT=3001 npm start
+git clone https://github.com/theeagle2407/latch-credit.git
+cd latch-credit
+npm start
 ```
 
-Open http://localhost:3001. Keep the Terminal open. Stop with Control+C. If the port is busy, use `PORT=3002 npm start` and the corresponding URL.
+Open http://localhost:3000. If that port is occupied, run `PORT=3001 npm start` and open http://localhost:3001.
 
-## Use Latch
+Connect an installed EVM wallet and approve the switch to Mezo Testnet. Borrowers need an eligible veBTC NFT and BTC for gas; lenders need MUSD and BTC for gas. Repayment requires principal plus the agreed interest. Visitors use the existing deployment and never deploy a contract.
 
-1. Connect an installed EVM wallet and switch to Mezo Testnet when prompted.
-2. Select an eligible veBTC NFT; choose principal, fixed interest and term.
-3. Approve the individual NFT and submit the escrow request.
-4. A different wallet reviews the request in Credit market, approves the exact MUSD principal and funds it.
-5. The borrower approves and repays principal plus interest, then claims the NFT separately.
-6. The lender withdraws repayment from Activity.
+## Verify the implementation
 
-The UI uses a 24-hour funding window. The repayment term begins when funded, followed by a one-day grace period. Unfunded requests can be cancelled, creating a borrower NFT claim. After grace, only the lender can claim default and become entitled to claim the NFT.
+```sh
+npm ci
+npm test
+npm run test:client
+npm run build
+```
 
-## Mezo integration
+The contract suite contains 13 checks; the client suite contains eight integration groups. They exercise authorization, eligibility, escrow, self-funding rejection, approvals, failed repayment, settlement, claims, withdrawal and default timing using mock tokens on a local EVM. They do not establish full compatibility with every real veBTC state or constitute an audit.
+
+The included GitHub Actions workflow runs these checks and builds the public app on pushes and pull requests. Check the repository's Actions tab for actual run results; no passing status is assumed here.
+
+An optional live-network check verifies configured deployments and token metadata:
+
+```sh
+npm run check:network
+```
+
+Ganache can fall back to JavaScript when its optional native uWS binary is unavailable. A previous dependency audit reported 39 findings in the development dependency tree; these have not been comprehensively remediated. The public deployment serves bundled assets and skips dependency installation.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    UI[Wallet-connected interface] --> C[LatchCredit escrow]
+    C --> NFT[veBTC position NFT]
+    L[Lender wallet] -->|MUSD funding through Latch| B[Borrower wallet]
+    B -->|MUSD repayment| C
+    C -->|Withdraw repayment| L
+```
+
+| Component | Responsibility |
+| --- | --- |
+| `contracts/LatchCredit.sol` | Immutable token configuration, loan state, collateral escrow and settlement. |
+| `dist/chain.js` | Chain reads, eligibility checks, integer amounts, scoped approvals and transaction preflight. |
+| `dist/wallet.js` | EIP-6963 wallet discovery, account changes and network switching. |
+| `dist/app.js` | Positions, Credit market, Activity and loan review. |
+| `scripts/build-public.cjs` | Builds the public static bundle without developer deployment pages. |
+
+The contract has no administrator or upgrade mechanism. SafeERC20 and ReentrancyGuard protect token operations and lifecycle mutations. Separate settlement and delivery let recipients claim assets without making repayment depend on NFT receiver behavior.
+
+## Deployment
 
 | Contract | Mezo Testnet address |
 | --- | --- |
@@ -55,49 +114,30 @@ The UI uses a 24-hour funding window. The repayment term begins when funded, fol
 | MUSD | `0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503` |
 | veBTC | `0x38E35d92E6Bfc6787272A62345856B13eA12130a` |
 
-Chain ID **31611**. RPC: `https://rpc.test.mezo.org`. Gas: BTC.
+Chain ID **31611** · native gas **BTC** · RPC `https://rpc.test.mezo.org`.
 
-[Deployment transaction](https://explorer.test.mezo.org/tx/0xe8986547642643c56b553cb0af37681ca01f80a811fe3f46daaa86a5fd0e4a04). The app already points to this deployment. Visitors never deploy a contract.
+[Deployment transaction](https://explorer.test.mezo.org/tx/0xe8986547642643c56b553cb0af37681ca01f80a811fe3f46daaa86a5fd0e4a04)
 
-The client reads actual ownership, lock amounts, expiration, escrow type and loan state. Enumeration supports Mezo's ownerToNFTokenIdList with an enumerable fallback. The contract rejects managed or permanent positions, empty locks and insufficient lock horizons. Both request and funding check eligibility.
-
-## Architecture
-
-- `contracts/LatchCredit.sol`: immutable token integration, escrow, funding, repayment and claims. No admin or upgrade mechanism.
-- `dist/chain.js`: chain reads, integer amounts, signer checks, scoped approvals and transaction preflight.
-- `dist/wallet.js`: EIP-6963 wallet discovery, account changes and network switching.
-- `dist/app.js`: Positions, Credit market and Activity. Actual transaction hashes are stored in the browser.
-- `dist/refined.css`: responsive interface and reduced-motion support.
-- `scripts/build-public.cjs`: dependency-free preparation of the public static app.
-
-Separate NFT delivery and repayment withdrawal prevent receiver failures from blocking settlement. Token operations use OpenZeppelin SafeERC20 and ReentrancyGuard. These protections do not constitute an audit.
-
-## Validation
+To publish the interface against this deployment:
 
 ```sh
-npm ci
-npm test
-npm run test:client
-npm run check:network
-```
-
-The local suites include 13 contract checks and eight client integration groups with mock tokens. They cover authorization, eligibility, escrow, self-funding rejection, exact approvals, failed repayment, settlement, claims, withdrawal and default timing. Additional DOM checks exercise wallet switching, requests, lender funding and state clearing. Desktop and mobile visual fixtures were inspected. The live repayment cycle is linked above; default recovery has been tested locally, not demonstrated on the live deployment.
-
-Ganache may warn about its optional native uWS binary and fall back to JavaScript. A previously reported dependency audit contained 39 findings; those development dependencies have not been remediated. Public hosting skips installing them and serves the bundled interface. Ethers' license is under `dist/vendor`.
-
-## Hosting
-
-```sh
-node scripts/build-public.cjs
+npm run build
 npx vercel --prod
 ```
 
-The checked-in configuration serves `public-app`. No environment variables, server process or private keys are required. See [publishing instructions](docs/PUBLISH.md).
+See [hosting](docs/PUBLISH.md) and [developer deployment](docs/DEPLOY.md).
 
-## Limits and lender economics
+## Current boundaries
 
-There is no price oracle, LTV enforcement, guaranteed liquidity, partial repayment, protocol fee, mobile QR wallet connection or production audit. Lenders bear BTC price risk, MUSD risk, contract risk and the delay before locked BTC can be withdrawn. Default recovery is the NFT, not an immediate BTC payment. Voting restrictions may affect withdrawal.
+- **Underwriting:** no oracle, automatic LTV cap or price-triggered liquidation. Lenders select requests and can lose money if collateral recovery is insufficient.
+- **Liquidity:** no guaranteed funding, pooled liquidity or validated lending business model. The contract currently charges no protocol fee.
+- **Position rights:** no voting or reward forwarding in escrow. Recovery remains subject to Mezo's position rules.
+- **Loan features:** no partial repayment; early repayment still owes all fixed interest.
+- **Security:** no independent audit. Real veBTC fork coverage, adversarial testing and production deployment review remain outstanding. Direct NFT transfers outside the request flow can strand collateral.
+- **Wallet support:** installed EVM wallets; no mobile QR connection.
 
-Latch provides no voting or reward forwarding while an NFT is escrowed. Fixed interest is paid in full on early repayment. A zero-interest integration test does not validate lender profitability. Production work requires independent security review, lender pricing research and explicit treatment of governance and reward rights.
+The next milestones are independent borrower/lender validation, stronger recovery-path evidence and security review. None are represented as completed.
 
-See [contract behavior](docs/CONTRACTS.md).
+## License
+
+Original project code is MIT licensed; see [LICENSE](LICENSE). Bundled third-party code retains its own notices, including [ethers](dist/vendor/ethers-LICENSE.md).

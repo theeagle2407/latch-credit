@@ -1,17 +1,18 @@
 {
   "name": "latch-credit",
   "version": "1.0.0",
-  "description": "Positions-first interface for proposed lender-funded MUSD loans secured by locked veBTC NFTs.",
+  "description": "Fixed-term MUSD credit secured by eligible veBTC position NFTs on Mezo.",
   "main": "index.js",
   "scripts": {
     "test": "node scripts/test-contracts.cjs",
     "test:client": "node scripts/test-client.cjs",
     "start": "node scripts/serve.cjs",
-    "check:network": "node scripts/check-network.cjs"
+    "check:network": "node scripts/check-network.cjs",
+    "build": "node scripts/build-public.cjs"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "@openzeppelin/contracts": "^5.4.0",

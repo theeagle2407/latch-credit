@@ -1,17 +1,18 @@
-# Wallet-approved deployment
+# Developer deployment
 
-Version 6 already pins the corrected deployment at 0xf65dd90ffe34da7f5e12938a174b8bcaf46b67bd, transaction 0xe8986547642643c56b553cb0af37681ca01f80a811fe3f46daaa86a5fd0e4a04. Do not deploy again or import a receipt to use v6. The instructions below describe the earlier developer setup flow.
+The public app already uses LatchCredit at `0xf65dd90ffe34da7f5e12938a174b8bcaf46b67bd` on Mezo Testnet (31611). Visitors and interface maintainers do not need a new contract. For hosting changes, follow [PUBLISH.md](PUBLISH.md).
 
-Version 5 corrects the immutable collateral collection to 0x38E35d92E6Bfc6787272A62345856B13eA12130a. The earlier deployment used another collection that also reports the name veBTC. Use the v5 prepared payload. The deployment page stores transaction hashes per collection, so the old successful transaction does not block this correction. Download latch-deployment-v5.json after confirmation and run `node scripts/activate-deployment.cjs ~/Downloads/latch-deployment-v5.json` to save the selection in the app config. Activation rejects receipts whose creation data does not match the prepared deployment.
+## Reproduce a new deployment
 
-This setup deploys LatchCredit on Mezo Testnet (31611) through an installed EVM wallet. It never asks for a private key. The deployment wallet is 0xB37b46F58cd7E384DbD051332EB0c6e110E3Ed7C.
+These steps are for developers intentionally deploying a separate contract. Preserve the existing configuration before proceeding. A new contract has separate loan state; deploying it does not migrate existing loans.
 
-1. Run `node scripts/prepare-deploy.cjs` in the project root. This compiles the existing contract with optimization and the London EVM target recommended in Mezo's getting-started guide. Token addresses come from config/mezo-testnet.json.
-2. Start the local app: `PORT=3001 npm start`.
-3. Open http://localhost:3001/deploy.html. This developer setup page is separate from the product.
-4. Connect the specified wallet. Approve switching to Mezo Testnet if prompted. The page checks token code and estimates gas. Approve deployment only after reviewing the wallet's fee.
-5. Click Check submitted transaction until it confirms. Download the receipt and retain the contract address and transaction hash.
+1. Run `npm ci` and both test suites.
+2. Review `config/mezo-testnet.json` and the immutable MUSD and veBTC addresses.
+3. Review the deployer address in `scripts/prepare-deploy.cjs`. The supplied setup is pinned to the original builder wallet; adapt that address for your own deployment.
+4. Run `node scripts/prepare-deploy.cjs`. It compiles with optimization and the London EVM target, then writes `dist/deployment.json` and `dist/network.json`. This changes generated configuration; do not publish it unintentionally.
+5. Start the local server with `PORT=3001 npm start` and open `http://localhost:3001/deploy.html`.
+6. Connect the configured wallet, switch to Mezo Testnet, review the transaction and approve deployment. The transaction sends zero BTC as value but requires BTC for gas. Never enter a private key into the app.
+7. After confirmation, download the receipt. Activate it with `node scripts/activate-deployment.cjs /absolute/path/to/receipt.json`. The script validates the deployment before updating the configured address.
+8. Run `npm run check:network`, reload the interface and exercise the intended lifecycle before publishing.
 
-The deployment transaction sends zero BTC as value; only the network fee is charged. It does not approve or transfer tokens or collateral. Refreshing preserves a submitted transaction hash in this browser to reduce accidental duplicate deployments. If a submitted deployment reverts, retain the hash for investigation rather than clearing it and retrying blindly.
-
-After confirmation the main interface still needs integration with the new contract. Deployment does not automatically enable live lending or replace sample positions. Local contract tests are not an independent audit. Use this on testnet only.
+The public build excludes the developer deployment page and payload. Local mock tests are not an audit or proof of compatibility with every real veBTC state.
