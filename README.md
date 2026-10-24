@@ -100,4 +100,4 @@ There is no price oracle, LTV enforcement, guaranteed liquidity, partial repayme
 
 Latch provides no voting or reward forwarding while an NFT is escrowed. Fixed interest is paid in full on early repayment. A zero-interest integration test does not validate lender profitability. Production work requires independent security review, lender pricing research and explicit treatment of governance and reward rights.
 
-See [contract behavior](docs/CONTRACTS.md) and [walkthrough](docs/WALKTHROUGH.md).
+See [contract behavior](docs/CONTRACTS.md).
